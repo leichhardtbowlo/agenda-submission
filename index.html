@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Board Agenda Submissions – The Bowlo Leichhardt</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<style>
+  :root {
+    --navy:  #0D2141;
+    --teal:  #0D3A3D;
+    --amber: #f59e0b;
+    --white: #ffffff;
+    --off:   #f4f6f9;
+    --mid:   #e2e8f0;
+    --text:  #1a202c;
+    --muted: #64748b;
+    --high:  #dc2626;
+    --low:   #16a34a;
+    --radius:8px;
+    --shadow:0 2px 8px rgba(0,0,0,0.09);
+    --shadow-lg:0 4px 20px rgba(0,0,0,0.13);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--off);color:var(--text);min-height:100vh;}
+
+  /* LOGIN */
+  #screen-login{min-height:100vh;background:var(--navy);flex-direction:column;align-items:center;justify-content:center;gap:24px;display:none;}
+  #screen-login.active{display:flex;}
+  .login-card{background:var(--white);border-radius:16px;padding:40px 36px;width:340px;text-align:center;box-shadow:var(--shadow-lg);}
+  .login-logo{height:72px;margin-bottom:16px;border-radius:14px;overflow:hidden;display:block;margin-left:auto;margin-right:auto;}
+  .login-card h1{font-size:20px;color:var(--navy);margin-bottom:4px;}
+  .login-card p{font-size:14px;color:var(--muted);margin-bottom:28px;}
+  .btn-login{background:var(--navy);color:var(--white);border:none;border-radius:var(--radius);padding:13px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%;}
+  .btn-login:hover{background:#1a3a6b;}
+  .login-note{font-size:12px;color:rgba(255,255,255,0.45);margin-top:8px;}
+  .login-checking-state{display:flex;flex-direction:column;align-items:center;gap:14px;padding:6px 0 2px;}
+  .login-spinner{width:26px;height:26px;border:3px solid rgba(13,33,65,0.15);border-top-color:var(--navy);border-radius:50%;animation:login-spin .8s linear infinite;}
+  @keyframes login-spin{to{transform:rotate(360deg);}}
+  .login-checking-text.login-checking-text{font-size:13px;color:var(--muted);margin:0;}
+
+  /* HEADER */
+  .app-header{background:var(--navy);color:#fff;height:60px;display:none;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow);}
+  .header-left{display:flex;align-items:center;gap:12px;}
+  .header-logo{height:36px;border-radius:8px;}
+  .header-title{font-size:15px;font-weight:700;color:#fff;line-height:1.2;}
+  .header-sub{font-size:11px;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:.04em;}
+  .header-right{display:flex;align-items:center;gap:10px;}
+  .user-chip{font-size:12px;color:rgba(255,255,255,0.8);background:rgba(255,255,255,0.12);padding:4px 10px;border-radius:20px;}
+  .btn-signout{background:none;border:1px solid rgba(255,255,255,0.3);color:rgba(255,255,255,0.7);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;}
+
+  .screen{display:none;} .screen.active{display:block;}
+
+  .tab-bar{background:var(--white);border-bottom:1px solid var(--mid);display:flex;position:sticky;top:60px;z-index:90;}
+  .tab-btn{flex:1;padding:14px 8px;border:none;background:none;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .tab-btn.active{color:var(--navy);border-bottom-color:var(--amber);}
+
+  .form-body{padding:16px;max-width:720px;margin:0 auto;padding-bottom:80px;}
+  .form-section{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+  .form-section-header{background:var(--navy);color:#fff;padding:11px 16px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;display:flex;align-items:center;gap:8px;}
+  .form-section-header .section-num{background:var(--amber);color:var(--navy);width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0;}
+  .form-section-body{padding:16px;}
+  .form-group{margin-bottom:16px;}
+  .form-group:last-child{margin-bottom:0;}
+  .form-label{display:block;font-size:12px;font-weight:700;color:var(--text);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+  .form-label .req{color:var(--high);margin-left:2px;}
+  .form-hint{font-size:12px;color:var(--muted);margin-bottom:6px;font-style:italic;font-weight:400;text-transform:none;letter-spacing:0;}
+  .form-control{width:100%;padding:10px 12px;border:1px solid var(--mid);border-radius:var(--radius);font-size:14px;color:var(--text);background:var(--white);outline:none;font-family:inherit;}
+  .form-control:focus{border-color:var(--navy);}
+  textarea.form-control{min-height:90px;resize:vertical;}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:500px){.form-row{grid-template-columns:1fr;}}
+
+  .status-toggle{display:flex;border:1px solid var(--mid);border-radius:var(--radius);overflow:hidden;}
+  .status-opt{flex:1;padding:9px 12px;font-size:13px;font-weight:600;cursor:pointer;background:var(--off);color:var(--muted);border:none;text-align:center;}
+  .status-opt.active-draft{background:#f1f5f9;color:var(--navy);}
+  .status-opt.active-submitted{background:var(--low);color:#fff;}
+
+  .cat-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .cat-pill{padding:6px 14px;border-radius:20px;border:1px solid var(--mid);font-size:13px;font-weight:600;cursor:pointer;background:var(--off);color:var(--muted);}
+  .cat-pill.selected{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+  .action-options{display:flex;flex-direction:column;gap:8px;}
+  .action-option{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--off);border:2px solid var(--mid);border-radius:var(--radius);cursor:pointer;}
+  .action-option.selected{border-color:var(--navy);background:#eef2f9;}
+  .action-radio{width:18px;height:18px;border:2px solid var(--mid);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+  .action-option.selected .action-radio{border-color:var(--navy);}
+  .action-option.selected .action-radio::after{content:'';width:8px;height:8px;background:var(--navy);border-radius:50%;display:block;}
+  .action-label{font-size:14px;font-weight:500;}
+  .action-label small{display:block;font-size:12px;color:var(--muted);font-weight:400;}
+
+  .upload-zone{border:2px dashed var(--mid);border-radius:var(--radius);padding:18px;text-align:center;cursor:pointer;background:var(--off);}
+  .upload-zone:hover{border-color:var(--navy);background:#f0f4ff;}
+  .upload-zone input{display:none;}
+  .upload-zone-text{font-size:13px;color:var(--muted);margin-top:6px;}
+  .upload-zone-text strong{color:var(--navy);}
+  .file-list{margin-top:10px;display:flex;flex-direction:column;gap:6px;}
+  .file-chip{display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--mid);border-radius:var(--radius);padding:7px 10px;font-size:13px;}
+  .file-chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .file-chip-remove{background:none;border:none;cursor:pointer;color:var(--muted);font-size:16px;padding:0 2px;}
+
+  .folder-preview{background:#f8faff;border:1px solid #c7d5f0;border-radius:var(--radius);padding:14px 16px;}
+  .folder-preview-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+  .folder-tree{font-size:12px;color:var(--text);line-height:2;font-family:'SF Mono',Monaco,monospace;}
+  .folder-tree .folder{color:var(--navy);font-weight:700;}
+  .folder-tree .file-hero{color:var(--teal);font-weight:600;}
+  .folder-tree .file-support{color:var(--muted);}
+
+  .btn-submit{background:var(--navy);color:#fff;border:none;border-radius:var(--radius);padding:14px 24px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-top:4px;}
+  .btn-submit:disabled{opacity:.45;cursor:not-allowed;}
+  .form-progress{font-size:13px;color:var(--muted);text-align:center;margin-top:10px;min-height:18px;}
+
+  .pack-bar{background:linear-gradient(135deg,var(--navy) 0%,var(--teal) 100%);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+  .pack-bar-title{font-size:13px;font-weight:700;color:#fff;}
+  .pack-bar-sub{font-size:11px;color:rgba(255,255,255,0.65);margin-top:1px;}
+  .btn-pack{background:var(--amber);color:var(--navy);border:none;border-radius:var(--radius);padding:9px 18px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+
+  .list-toolbar-sub{background:var(--white);border-bottom:1px solid var(--mid);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .search-wrap{position:relative;flex:1;min-width:160px;}
+  .search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;}
+  .search-input{width:100%;padding:9px 12px 9px 34px;border:1px solid var(--mid);border-radius:var(--radius);font-size:14px;background:var(--off);outline:none;}
+  .filter-select{border:1px solid var(--mid);border-radius:20px;padding:5px 12px;font-size:13px;background:var(--off);color:var(--text);}
+
+  .list-body{padding:12px 16px 80px;max-width:720px;margin:0 auto;}
+  .list-section-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}
+
+  .sub-card{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:10px;border-left:5px solid var(--mid);overflow:hidden;cursor:pointer;}
+  .sub-card:hover{box-shadow:var(--shadow-lg);}
+  .sub-card.cat-operations{border-left-color:#2563eb;} .sub-card.cat-finance{border-left-color:#16a34a;}
+  .sub-card.cat-facilities{border-left-color:#d97706;} .sub-card.cat-governance{border-left-color:#7c3aed;}
+  .sub-card.cat-events{border-left-color:#0891b2;} .sub-card.cat-bowls{border-left-color:#be185d;}
+  .sub-card.cat-other{border-left-color:#64748b;}
+  .sub-card-body{padding:12px 14px;}
+  .sub-title{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:6px;word-wrap:break-word;}
+  .sub-meta{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;}
+  .sub-meeting{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:4px;}
+  .sub-summary{font-size:13px;color:var(--text);line-height:1.5;margin-top:4px;}
+  .sub-actions{display:flex;gap:8px;padding:8px 14px;border-top:1px solid var(--mid);background:var(--off);flex-wrap:wrap;}
+  .btn-sub-action{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:var(--navy);background:var(--white);border:1px solid var(--mid);border-radius:6px;padding:5px 10px;cursor:pointer;}
+  .btn-sub-action:hover{background:var(--mid);}
+
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid transparent;white-space:nowrap;}
+  .badge-cat-operations{background:#eff6ff;color:#2563eb;border-color:#bfdbfe;}
+  .badge-cat-finance{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0;}
+  .badge-cat-facilities{background:#fffbeb;color:#d97706;border-color:#fde68a;}
+  .badge-cat-governance{background:#f5f3ff;color:#7c3aed;border-color:#ddd6fe;}
+  .badge-cat-events{background:#ecfeff;color:#0891b2;border-color:#a5f3fc;}
+  .badge-cat-bowls{background:#fdf2f8;color:#be185d;border-color:#fbcfe8;}
+  .badge-cat-other{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+  .badge-action-noting{background:#f1f5f9;color:#475569;border-color:#cbd5e1;}
+  .badge-action-discussion{background:#fffbeb;color:#d97706;border-color:#fde68a;}
+  .badge-action-decision{background:#fef2f2;color:#dc2626;border-color:#fecaca;}
+  .badge-action-investigate{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0;}
+  .badge-action-proceed{background:#eef2ff;color:#4f46e5;border-color:#c7d2fe;}
+  .badge-draft{background:#f1f5f9;color:#64748b;border-color:#cbd5e1;}
+  .badge-submitted{background:#f0fdf4;color:#16a34a;border-color:#bbf7d0;}
+
+  .detail-header{background:var(--white);border-bottom:1px solid var(--mid);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:60px;z-index:90;}
+  .detail-header-title{font-size:16px;font-weight:700;color:var(--navy);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .btn-back{background:none;border:none;cursor:pointer;color:var(--navy);display:flex;align-items:center;gap:6px;font-size:14px;font-weight:600;padding:6px 0;}
+  .detail-body{padding:16px;max-width:720px;margin:0 auto;padding-bottom:100px;}
+  .detail-title{font-size:20px;font-weight:800;color:var(--navy);margin-bottom:10px;}
+  .detail-badges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+  .detail-section{background:var(--white);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;box-shadow:var(--shadow);}
+  .detail-section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:12px;}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:480px){.detail-grid{grid-template-columns:1fr;}}
+  .detail-field-label{font-size:11px;color:var(--muted);margin-bottom:2px;font-weight:500;}
+  .detail-field-value{font-size:14px;color:var(--text);font-weight:500;}
+  .detail-field.full{grid-column:1/-1;}
+  .detail-text-block{font-size:14px;color:var(--text);line-height:1.6;white-space:pre-wrap;word-wrap:break-word;}
+
+  .update-log-entries{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+  .update-log-entry{background:var(--off);border-radius:var(--radius);padding:10px 12px;border-left:3px solid var(--teal);}
+  .update-log-meta{font-size:11px;color:var(--muted);margin-bottom:3px;font-weight:600;}
+  .update-log-text{font-size:13px;color:var(--text);line-height:1.5;}
+  .update-note-input{width:100%;padding:10px 12px;border:1px solid var(--mid);border-radius:var(--radius);font-size:13px;font-family:inherit;min-height:70px;resize:vertical;margin-bottom:8px;}
+  .btn-add-note{background:var(--teal);color:#fff;border:none;border-radius:var(--radius);padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;}
+
+  .attachment-list{display:flex;flex-direction:column;gap:6px;margin-bottom:10px;}
+  .attachment-link{display:flex;align-items:center;gap:10px;padding:8px 11px;background:var(--off);border:1px solid var(--mid);border-radius:var(--radius);text-decoration:none;color:var(--navy);font-size:13px;font-weight:500;}
+  .attachment-link:hover{background:var(--mid);}
+  .attachment-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .btn-add-attachment{background:none;border:2px dashed var(--mid);border-radius:var(--radius);padding:9px;width:100%;cursor:pointer;font-size:13px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-add-attachment:hover{border-color:var(--navy);color:var(--navy);}
+
+  .btn-download-pack{background:linear-gradient(135deg,var(--navy),var(--teal));color:#fff;border:none;border-radius:var(--radius);padding:11px 20px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;justify-content:center;}
+  .pack-note{font-size:11px;color:var(--muted);text-align:center;margin-top:6px;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;display:none;align-items:center;justify-content:center;padding:20px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--white);border-radius:12px;width:100%;max-width:440px;box-shadow:var(--shadow-lg);overflow:hidden;max-height:85vh;display:flex;flex-direction:column;}
+  .modal-header{background:var(--navy);color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .modal-close{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;opacity:.7;}
+  .modal-body{padding:20px;overflow-y:auto;}
+  .meeting-options{display:flex;flex-direction:column;gap:6px;}
+  .meeting-opt{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--off);border:2px solid var(--mid);border-radius:var(--radius);cursor:pointer;}
+  .meeting-opt.selected{border-color:var(--navy);background:#eef2f9;}
+  .meeting-opt-count{font-size:12px;color:var(--muted);}
+  .modal-footer{padding:14px 20px;border-top:1px solid var(--mid);display:flex;gap:8px;}
+  .btn-modal-primary{flex:1;background:linear-gradient(135deg,var(--navy),var(--teal));color:#fff;border:none;border-radius:var(--radius);padding:11px;font-size:14px;font-weight:700;cursor:pointer;}
+  .btn-modal-secondary{background:none;border:1px solid var(--mid);color:var(--muted);border-radius:var(--radius);padding:11px 16px;font-size:14px;cursor:pointer;}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--navy);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:14px;font-weight:500;z-index:999;transition:transform .3s;white-space:nowrap;box-shadow:var(--shadow-lg);}
+  .toast.show{transform:translateX(-50%) translateY(0);}
+  .toast.success{background:var(--low);}
+  .toast.error{background:var(--high);}
+  .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+  .loading-spinner{text-align:center;padding:50px 20px;color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+
+<div id="screen-login" class="screen active">
+  <div class="login-card">
+    <img class="login-logo" src="https://leichhardtbowlo.github.io/director-reports/bowlo-logo.png" alt="The Bowlo" onerror="this.style.display='none'">
+    <h1>Board Agenda Submissions</h1>
+    <p>Leichhardt Bowlo</p>
+    <div id="login-checking" class="login-checking-state">
+      <div class="login-spinner"></div>
+      <p class="login-checking-text">Checking sign-in…</p>
+    </div>
+    <button class="btn-login" id="btn-login" onclick="signIn()" style="display:none">Sign in with Microsoft 365</button>
+  </div>
+  <p class="login-note" id="login-note" style="display:none">Leichhardt Bowling Club staff &amp; management only</p>
+</div>
+
+<header class="app-header" id="app-header">
+  <div class="header-left">
+    <img class="header-logo" src="https://leichhardtbowlo.github.io/director-reports/bowlo-logo.png" alt="" onerror="this.style.display='none'">
+    <div>
+      <div class="header-title">Agenda Submissions</div>
+      <div class="header-sub">Board &amp; Project Submissions</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="user-chip" id="user-chip"></span>
+    <button class="btn-signout" onclick="signOut()">Sign out</button>
+  </div>
+</header>
+
+<div id="screen-main" class="screen">
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-form-btn" onclick="switchTab('form')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      New Submission
+    </button>
+    <button class="tab-btn" id="tab-list-btn" onclick="switchTab('list')">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      All Submissions
+    </button>
+  </div>
+
+  <div id="tab-form" class="form-body">
+    <div class="form-section">
+      <div class="form-section-header"><span class="section-num">1</span>Submission details</div>
+      <div class="form-section-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Submitted by <span class="req">*</span></label>
+            <input type="text" class="form-control" id="f-submitter" oninput="updateFolderPreview();checkSubmit()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date submitted</label>
+            <input type="date" class="form-control" id="f-date" oninput="updateFolderPreview()">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Preferred meeting <span class="req">*</span></label>
+            <select class="form-control" id="f-meeting" onchange="updateFolderPreview();checkSubmit()">
+              <option value="">Select meeting…</option>
+              <option value="August 2026">August 2026 Board Meeting</option>
+              <option value="September 2026">September 2026 Board Meeting</option>
+              <option value="October 2026">October 2026 Board Meeting</option>
+              <option value="November 2026">November 2026 Board Meeting</option>
+              <option value="February 2027">February 2027 Board Meeting</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contact if questions</label>
+            <input type="text" class="form-control" id="f-contact" placeholder="Name / email / mobile">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status</label>
+          <div class="status-toggle">
+            <button class="status-opt active-draft" id="status-draft" onclick="setStatus('draft')">Draft — save for now</button>
+            <button class="status-opt" id="status-submitted" onclick="setStatus('submitted')">Submitted — ready for agenda</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-header"><span class="section-num">2</span>The submission</div>
+      <div class="form-section-body">
+        <div class="form-group">
+          <label class="form-label">Item / Proposal name <span class="req">*</span></label>
+          <input type="text" class="form-control" id="f-title" placeholder="Brief title of the agenda item, issue, idea or project" oninput="updateFolderPreview();checkSubmit()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <div class="cat-grid" id="cat-grid">
+            <div class="cat-pill" onclick="toggleCat(this)">Operations</div>
+            <div class="cat-pill" onclick="toggleCat(this)">Facilities</div>
+            <div class="cat-pill" onclick="toggleCat(this)">Finance</div>
+            <div class="cat-pill" onclick="toggleCat(this)">Bowls</div>
+            <div class="cat-pill" onclick="toggleCat(this)">Events</div>
+            <div class="cat-pill" onclick="toggleCat(this)">Governance</div>
+            <div class="cat-pill" onclick="toggleCat(this)">Other</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Summary / Reason for submission <span class="req">*</span></label>
+          <div class="form-hint">What is being proposed or raised, and why does it matter? 2–4 sentences.</div>
+          <textarea class="form-control" id="f-summary" oninput="checkSubmit()"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Key details / Impact</label>
+          <div class="form-hint">Key facts, options, costs, risks, benefits, timing, people involved, legal or compliance issues.</div>
+          <textarea class="form-control" id="f-keydetails" style="min-height:110px"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Board action required <span class="req">*</span></label>
+          <div class="action-options" id="action-options">
+            <div class="action-option" data-value="For noting" onclick="selectAction(this)">
+              <div class="action-radio"></div>
+              <div class="action-label">For noting <small>Board to be informed — no decision required</small></div>
+            </div>
+            <div class="action-option" data-value="For discussion" onclick="selectAction(this)">
+              <div class="action-radio"></div>
+              <div class="action-label">For discussion <small>Board to discuss; no formal decision needed yet</small></div>
+            </div>
+            <div class="action-option" data-value="For decision" onclick="selectAction(this)">
+              <div class="action-radio"></div>
+              <div class="action-label">For decision <small>Board to make a formal resolution</small></div>
+            </div>
+            <div class="action-option" data-value="Approval to investigate" onclick="selectAction(this)">
+              <div class="action-radio"></div>
+              <div class="action-label">Approval to investigate <small>Seeking approval to explore further before committing</small></div>
+            </div>
+            <div class="action-option" data-value="Approval to proceed" onclick="selectAction(this)">
+              <div class="action-radio"></div>
+              <div class="action-label">Approval to proceed <small>Full go-ahead requested</small></div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Recommendation / Requested action</label>
+          <textarea class="form-control" id="f-recommendation" placeholder="State the recommendation clearly. What exactly is being asked of the Board?" style="min-height:70px"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Attachments</label>
+          <div class="upload-zone" onclick="document.getElementById('f-files').click()">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--muted)"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <div class="upload-zone-text"><strong>Tap to attach files</strong> — supporting docs, quotes, mockups</div>
+            <input type="file" id="f-files" multiple onchange="handleFiles(event)">
+          </div>
+          <div class="file-list" id="file-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-header"><span class="section-num">3</span>SharePoint folder — preview</div>
+      <div class="form-section-body">
+        <div class="folder-preview">
+          <div class="folder-preview-label">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+            Board Agenda Submissions / <span id="folder-name-preview" style="color:var(--teal)">fill in title above…</span>
+          </div>
+          <div class="folder-tree" id="folder-tree">
+            <div style="color:var(--muted);font-size:12px;font-style:italic">Complete the form above to see the folder structure.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="btn-submit" disabled onclick="submitForm()">Generate Document &amp; Save to SharePoint</button>
+    <div class="form-progress" id="form-progress"></div>
+  </div>
+
+  <div id="tab-list" style="display:none">
+    <div class="pack-bar">
+      <div>
+        <div class="pack-bar-title">📦 Board Meeting Pack</div>
+        <div class="pack-bar-sub">Generate a ZIP of all submissions for a chosen meeting</div>
+      </div>
+      <button class="btn-pack" onclick="openPackModal()">Generate Board Pack</button>
+    </div>
+    <div class="list-toolbar-sub">
+      <div class="search-wrap">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input class="search-input" id="search-input" type="text" placeholder="Search submissions…" oninput="renderList()">
+      </div>
+      <select class="filter-select" id="filter-meeting" onchange="renderList()"><option value="">Meeting: All</option></select>
+      <select class="filter-select" id="filter-category" onchange="renderList()">
+        <option value="">Category: All</option>
+        <option>Operations</option><option>Facilities</option><option>Finance</option>
+        <option>Bowls</option><option>Events</option><option>Governance</option><option>Other</option>
+      </select>
+    </div>
+    <div class="list-body">
+      <div class="list-section-title" id="list-count">Loading…</div>
+      <div id="submissions-container"><div class="loading-spinner">Loading…</div></div>
+    </div>
+  </div>
+</div>
+
+<div id="screen-detail" class="screen">
+  <div class="detail-header">
+    <button class="btn-back" onclick="backToList()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      Back
+    </button>
+    <span class="detail-header-title" id="detail-header-title"></span>
+  </div>
+  <div class="detail-body" id="detail-body"><div class="loading-spinner">Loading…</div></div>
+</div>
+
+<div class="modal-overlay" id="pack-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">📦 Generate Board Pack</span>
+      <button class="modal-close" onclick="closePackModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Select meeting</label>
+        <div class="meeting-options" id="pack-meeting-options"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:10px">All submission documents are regenerated fresh from current data at time of download.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-secondary" onclick="closePackModal()">Cancel</button>
+      <button class="btn-modal-primary" onclick="downloadBoardPack()">Download Board Pack</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── CONFIG ──
+const CLIENT_ID    = 'd1999511-3fbe-4233-9ac4-63098ff89611';
+const TENANT_ID    = '3e8f57de-d795-48c9-8537-0b1caae52c09';
+const REDIRECT_URI = 'https://leichhardtbowlo.github.io/agenda-submission/index.html';
+const LIBRARY_NAME = 'Board Agenda Submissions';
+const NOTES_LIST_NAME = 'Board Agenda Submission Notes';
+const SP_HOST      = 'leichhardtbowlingclub.sharepoint.com';
+
+const msalConfig = {
+  auth: { clientId: CLIENT_ID, authority: `https://login.microsoftonline.com/${TENANT_ID}`, redirectUri: REDIRECT_URI },
+  cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
+};
+const msalInstance = new msal.PublicClientApplication(msalConfig);
+const scopes = ['https://graph.microsoft.com/Sites.ReadWrite.All', 'https://graph.microsoft.com/Files.ReadWrite.All'];
+
+let currentUser = null;
+let siteId = null, driveId = null, libraryListId = null, notesListId = null;
+let allSubmissions = [];
+let selectedFiles = [];
+let recurringNA = false;
+let selectedStatus = 'draft';
+let selectedAction = '';
+let selectedCategory = '';
+let currentSubmissionId = null;
+
+// ── AUTH ──
+function signIn() { msalInstance.loginRedirect({ scopes, prompt: 'select_account' }); }
+async function getToken() {
+  try { return (await msalInstance.acquireTokenSilent({ scopes, account: currentUser })).accessToken; }
+  catch (e) { msalInstance.acquireTokenRedirect({ scopes }); return new Promise(() => {}); }
+}
+function signOut() { msalInstance.logoutRedirect(); }
+
+function showLoginButton() {
+  document.getElementById('login-checking').style.display = 'none';
+  document.getElementById('btn-login').style.display = 'block';
+  document.getElementById('login-note').style.display = 'block';
+}
+
+async function onSignedIn() {
+  document.getElementById('app-header').style.display = 'flex';
+  document.getElementById('screen-login').classList.remove('active');
+  document.getElementById('user-chip').textContent = currentUser.name || currentUser.username;
+  showScreen('main');
+  document.getElementById('f-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-submitter').value = currentUser.name || '';
+  try {
+    await initSiteAndLists();
+    await loadSubmissions();
+  } catch (e) {
+    console.error('SharePoint connection failed:', e);
+    document.getElementById('submissions-container').innerHTML = `
+      <div class="empty-state">
+        <h3 style="color:var(--high)">Couldn't connect to SharePoint</h3>
+        <p style="margin-top:8px;font-size:13px">${escHtml(e.message || String(e))}</p>
+      </div>`;
+  }
+}
+
+// ── API HELPERS ──
+async function apiGet(url) {
+  const token = await getToken();
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function apiPost(url, body) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function apiPatch(url, body) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(await res.text());
+  return res.status === 204 ? null : res.json();
+}
+async function apiPut(url, data, contentType) {
+  const token = await getToken();
+  const res = await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType || 'application/octet-stream' }, body: data });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function initSiteAndLists() {
+  const siteRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${SP_HOST}:/`);
+  siteId = siteRes.id;
+
+  const listsRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists?$top=999`);
+  const normalise = s => String(s || '').replace(/&/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+  const lib = listsRes.value.find(l => l.displayName === LIBRARY_NAME) || listsRes.value.find(l => normalise(l.displayName) === normalise(LIBRARY_NAME));
+  if (!lib) throw new Error(`Could not find document library "${LIBRARY_NAME}"`);
+  libraryListId = lib.id;
+
+  const notes = listsRes.value.find(l => l.displayName === NOTES_LIST_NAME) || listsRes.value.find(l => normalise(l.displayName) === normalise(NOTES_LIST_NAME));
+  if (!notes) throw new Error(`Could not find list "${NOTES_LIST_NAME}"`);
+  notesListId = notes.id;
+
+  const drivesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives`);
+  const targetDrive = drivesRes.value.find(d => d.name === LIBRARY_NAME) || drivesRes.value.find(d => normalise(d.name) === normalise(LIBRARY_NAME));
+  if (!targetDrive) throw new Error(`Could not find drive for "${LIBRARY_NAME}"`);
+  driveId = targetDrive.id;
+}
+
+// ── SCREEN NAV ──
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function switchTab(tab) {
+  document.getElementById('tab-form-btn').classList.toggle('active', tab==='form');
+  document.getElementById('tab-list-btn').classList.toggle('active', tab==='list');
+  document.getElementById('tab-form').style.display = tab==='form' ? 'block' : 'none';
+  document.getElementById('tab-list').style.display = tab==='list' ? 'block' : 'none';
+  if (tab === 'list') renderList();
+}
+function backToList() { showScreen('main'); switchTab('list'); }
+
+// ── FORM INTERACTIONS ──
+function setStatus(s) {
+  selectedStatus = s;
+  document.getElementById('status-draft').className = 'status-opt' + (s==='draft'?' active-draft':'');
+  document.getElementById('status-submitted').className = 'status-opt' + (s==='submitted'?' active-submitted':'');
+}
+function toggleCat(el) {
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedCategory = el.textContent.trim();
+}
+function selectAction(el) {
+  document.querySelectorAll('.action-option').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedAction = el.dataset.value;
+  checkSubmit();
+}
+function checkSubmit() {
+  const ok = document.getElementById('f-title').value.trim() &&
+             document.getElementById('f-summary').value.trim() &&
+             document.getElementById('f-meeting').value &&
+             document.getElementById('f-submitter').value.trim() &&
+             selectedAction;
+  document.getElementById('btn-submit').disabled = !ok;
+}
+function updateFolderPreview() {
+  const title = document.getElementById('f-title').value.trim();
+  const date  = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
+  const submitter = document.getElementById('f-submitter').value.trim() || 'Director';
+  if (!title) {
+    document.getElementById('folder-name-preview').textContent = 'fill in title above…';
+    document.getElementById('folder-tree').innerHTML = '<div style="color:var(--muted);font-size:12px;font-style:italic">Complete the form above to see the folder structure.</div>';
+    return;
+  }
+  const slug = title.replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-').substring(0,40);
+  const folderName = `${date} ${slug} — ${submitter}`;
+  document.getElementById('folder-name-preview').textContent = folderName;
+  const filesSummary = selectedFiles.length
+    ? selectedFiles.map(f => `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file-support">${escHtml(f.name)}</span>`).join('<br>')
+    : '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="file-support" style="font-style:italic">(none yet)</span>';
+  document.getElementById('folder-tree').innerHTML = `
+<span class="folder">📁 ${escHtml(folderName)}/</span><br>
+&nbsp;&nbsp;├── <span class="file-hero">Submission.docx</span><br>
+&nbsp;&nbsp;└── <span class="folder">📁 Supporting Files/</span><br>
+${filesSummary}`;
+}
+
+function handleFiles(e) {
+  for (const f of e.target.files) selectedFiles.push(f);
+  renderFiles(); updateFolderPreview();
+  e.target.value = '';
+}
+function renderFiles() {
+  document.getElementById('file-list').innerHTML = selectedFiles.map((f,i) => `
+    <div class="file-chip">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--muted);flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+      <span class="file-chip-name">${escHtml(f.name)}</span>
+      <button class="file-chip-remove" onclick="selectedFiles.splice(${i},1);renderFiles();updateFolderPreview()">×</button>
+    </div>`).join('');
+}
+
+// ── DOCX GENERATION ──
+async function generateDocx(fields) {
+  const { Document, Paragraph, TextRun, HeadingLevel, Packer, AlignmentType, BorderStyle } = docx;
+  const heading = (text) => new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 300, after: 120 }, children: [ new TextRun({ text, color: '0D2141', bold: true }) ] });
+  const label = (text) => new TextRun({ text: text + ': ', bold: true });
+  const body = (text) => new TextRun({ text: text || '—' });
+
+  const doc = new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [ new TextRun({ text: 'Leichhardt Bowling & Recreation Club Ltd', bold: true, size: 20, color: '0D2141' }) ] }),
+        new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 300 }, children: [ new TextRun({ text: 'Board / Project Submission', size: 32, bold: true, color: '0D2141' }) ] }),
+
+        heading('1. Item / Proposal'),
+        new Paragraph({ spacing: { after: 80 }, children: [ label('Title'), body(fields.Title) ] }),
+        new Paragraph({ spacing: { after: 80 }, children: [ label('Category'), body(fields.Category) ] }),
+        new Paragraph({ spacing: { after: 200 }, children: [ label('Preferred meeting'), body(fields.Meeting) ] }),
+
+        heading('2. Summary / Reason for Submission'),
+        new Paragraph({ spacing: { after: 200 }, children: [ body(fields.Summary) ] }),
+
+        heading('3. Key Details / Impact'),
+        new Paragraph({ spacing: { after: 200 }, children: [ body(fields.KeyDetails) ] }),
+
+        heading('4. Board Action Required'),
+        new Paragraph({ spacing: { after: 80 }, children: [ label('Action requested'), body(fields.ActionType) ] }),
+        new Paragraph({ spacing: { after: 200 }, children: [ label('Recommendation'), body(fields.Recommendation) ] }),
+
+        heading('Submission Details'),
+        new Paragraph({ spacing: { after: 60 }, children: [ label('Submitted by'), body(fields.SubmittedBy) ] }),
+        new Paragraph({ spacing: { after: 60 }, children: [ label('Contact'), body(fields.ContactInfo) ] }),
+        new Paragraph({ spacing: { after: 60 }, children: [ label('Status'), body(fields.SubmissionStatus) ] }),
+      ]
+    }]
+  });
+
+  return await Packer.toBlob(doc);
+}
+
+// ── SUBMIT ──
+async function submitForm() {
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  const prog = document.getElementById('form-progress');
+
+  const title = document.getElementById('f-title').value.trim();
+  const date  = document.getElementById('f-date').value || new Date().toISOString().split('T')[0];
+  const submitter = document.getElementById('f-submitter').value.trim() || 'Director';
+  const slug = title.replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-').substring(0,40);
+  const folderName = `${date} ${slug} — ${submitter}`;
+
+  const fields = {
+    Title: title,
+    Category: selectedCategory || 'Other',
+    Meeting: document.getElementById('f-meeting').value,
+    SubmissionStatus: selectedStatus === 'draft' ? 'Draft' : 'Submitted',
+    ActionType: selectedAction,
+    SubmittedBy: submitter,
+    ContactInfo: document.getElementById('f-contact').value.trim(),
+    Summary: document.getElementById('f-summary').value.trim(),
+    KeyDetails: document.getElementById('f-keydetails').value.trim(),
+    Recommendation: document.getElementById('f-recommendation').value.trim()
+  };
+
+  try {
+    prog.textContent = 'Creating SharePoint folder…';
+    const safeFolderName = folderName.replace(/["*:<>?/\\|]/g, '-');
+    const newFolder = await apiPost(
+      `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children`,
+      { name: safeFolderName, folder: {}, '@microsoft.graph.conflictBehavior': 'rename' }
+    );
+
+    prog.textContent = 'Saving submission details…';
+    await apiPatch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${newFolder.id}/listItem/fields`, fields);
+
+    prog.textContent = 'Generating Submission.docx…';
+    const docBlob = await generateDocx(fields);
+    const docUploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${newFolder.id}:/Submission.docx:/content`;
+    await apiPut(docUploadUrl, docBlob, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+    if (selectedFiles.length > 0) {
+      prog.textContent = `Uploading ${selectedFiles.length} supporting file(s)…`;
+      for (const file of selectedFiles) {
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${newFolder.id}:/Supporting Files/${safeName}:/content`;
+        await apiPut(uploadUrl, file, file.type || 'application/octet-stream');
+      }
+    }
+
+    prog.textContent = '';
+    showToast('Submission saved successfully', 'success');
+    resetForm();
+    await loadSubmissions();
+    backToList();
+  } catch (e) {
+    btn.disabled = false;
+    prog.textContent = 'Error: ' + e.message;
+    showToast('Submission failed', 'error');
+    console.error(e);
+  }
+}
+
+function resetForm() {
+  document.getElementById('f-title').value = '';
+  document.getElementById('f-summary').value = '';
+  document.getElementById('f-keydetails').value = '';
+  document.getElementById('f-recommendation').value = '';
+  document.getElementById('f-contact').value = '';
+  document.getElementById('f-meeting').value = '';
+  selectedFiles = [];
+  renderFiles();
+  document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('selected'));
+  selectedCategory = '';
+  document.querySelectorAll('.action-option').forEach(o => o.classList.remove('selected'));
+  selectedAction = '';
+  setStatus('draft');
+  document.getElementById('btn-submit').disabled = true;
+  document.getElementById('form-progress').textContent = '';
+  updateFolderPreview();
+}
+
+// ── LOAD SUBMISSIONS ──
+async function loadSubmissions() {
+  try {
+    const url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/root/children?expand=listItem($expand=fields)&$top=999`;
+    const res = await apiGet(url);
+    allSubmissions = (res.value || []).filter(item => item.folder);
+
+    const meetings = [...new Set(allSubmissions.map(s => s.listItem?.fields?.Meeting).filter(Boolean))].sort();
+    const meetingSelect = document.getElementById('filter-meeting');
+    meetingSelect.innerHTML = '<option value="">Meeting: All</option>' + meetings.map(m => `<option>${escHtml(m)}</option>`).join('');
+
+    document.getElementById('tab-list-btn').innerHTML = `
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      All Submissions
+      <span style="background:var(--amber);color:var(--navy);font-size:10px;font-weight:800;padding:1px 6px;border-radius:10px;">${allSubmissions.length}</span>`;
+
+    renderList();
+  } catch (e) {
+    document.getElementById('submissions-container').innerHTML = `<div class="empty-state"><p style="color:var(--high)">Failed to load: ${escHtml(e.message)}</p></div>`;
+  }
+}
+
+function catClass(cat) {
+  const map = { Operations:'operations', Facilities:'facilities', Finance:'finance', Bowls:'bowls', Events:'events', Governance:'governance' };
+  return map[cat] || 'other';
+}
+function actionClass(a) {
+  const map = { 'For noting':'noting', 'For discussion':'discussion', 'For decision':'decision', 'Approval to investigate':'investigate', 'Approval to proceed':'proceed' };
+  return map[a] || 'noting';
+}
+
+function renderList() {
+  const search = document.getElementById('search-input').value.toLowerCase();
+  const meetingFilter = document.getElementById('filter-meeting').value;
+  const catFilter = document.getElementById('filter-category').value;
+
+  const filtered = allSubmissions.filter(s => {
+    const f = s.listItem?.fields || {};
+    const title = (f.Title || '').toLowerCase();
+    if (search && !title.includes(search)) return false;
+    if (meetingFilter && f.Meeting !== meetingFilter) return false;
+    if (catFilter && f.Category !== catFilter) return false;
+    return true;
+  }).sort((a,b) => new Date(b.createdDateTime) - new Date(a.createdDateTime));
+
+  document.getElementById('list-count').textContent = `${filtered.length} submission${filtered.length!==1?'s':''}`;
+
+  if (!filtered.length) {
+    document.getElementById('submissions-container').innerHTML = `<div class="empty-state"><h3>No submissions found</h3><p style="margin-top:6px;font-size:13px">Try adjusting your filters, or submit a new item.</p></div>`;
+    return;
+  }
+
+  document.getElementById('submissions-container').innerHTML = filtered.map(s => {
+    const f = s.listItem?.fields || {};
+    const cat = f.Category || 'Other';
+    const status = f.SubmissionStatus || 'Draft';
+    const action = f.ActionType || 'For noting';
+    const created = s.createdDateTime ? new Date(s.createdDateTime).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}) : '';
+    return `
+    <div class="sub-card cat-${catClass(cat)}" onclick="openDetail('${s.id}')">
+      <div class="sub-card-body">
+        <div class="sub-title">${escHtml(f.Title || 'Untitled')}</div>
+        <div class="sub-meta">
+          <span class="badge badge-cat-${catClass(cat)}">${escHtml(cat)}</span>
+          <span class="badge badge-action-${actionClass(action)}">${escHtml(action)}</span>
+          <span class="badge badge-${status==='Draft'?'draft':'submitted'}">${escHtml(status)}</span>
+        </div>
+        <div class="sub-meeting">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          ${escHtml(f.Meeting || 'No meeting set')} · Submitted by ${escHtml(f.SubmittedBy || '–')} · ${created}
+        </div>
+        <div class="sub-summary">${escHtml((f.Summary || '').substring(0,180))}${(f.Summary||'').length>180?'…':''}</div>
+      </div>
+      <div class="sub-actions">
+        <button class="btn-sub-action" onclick="event.stopPropagation();openDetail('${s.id}')">View</button>
+        <button class="btn-sub-action" onclick="event.stopPropagation();downloadSubmissionPack('${s.id}')">Download Pack</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL VIEW ──
+async function openDetail(folderId) {
+  currentSubmissionId = folderId;
+  showScreen('detail');
+  document.getElementById('detail-body').innerHTML = '<div class="loading-spinner">Loading…</div>';
+
+  try {
+    const item = allSubmissions.find(s => s.id === folderId) ||
+      await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}?expand=listItem($expand=fields)`);
+    const f = item.listItem?.fields || {};
+
+    document.getElementById('detail-header-title').textContent = f.Title || 'Submission';
+
+    const filesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`);
+    const files = (filesRes.value || []).filter(x => x.file);
+    const supportFolder = (filesRes.value || []).find(x => x.folder && x.name === 'Supporting Files');
+    let supportFiles = [];
+    if (supportFolder) {
+      const supportRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${supportFolder.id}/children`);
+      supportFiles = (supportRes.value || []).filter(x => x.file);
+    }
+
+    const notesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items?expand=fields&$top=999`);
+    const notes = (notesRes.value || []).filter(n => n.fields.SubmissionId === folderId)
+      .sort((a,b) => new Date(b.fields.NoteDate||b.createdDateTime) - new Date(a.fields.NoteDate||a.createdDateTime));
+
+    const status = f.SubmissionStatus || 'Draft';
+    const cat = f.Category || 'Other';
+    const action = f.ActionType || 'For noting';
+
+    document.getElementById('detail-body').innerHTML = `
+      <div class="detail-title">${escHtml(f.Title || 'Untitled')}</div>
+      <div class="detail-badges">
+        <span class="badge badge-cat-${catClass(cat)}">${escHtml(cat)}</span>
+        <span class="badge badge-action-${actionClass(action)}">${escHtml(action)}</span>
+        <span class="badge badge-${status==='Draft'?'draft':'submitted'}">${escHtml(status)}</span>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Submission Details</div>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="detail-field-label">Submitted by</div><div class="detail-field-value">${escHtml(f.SubmittedBy||'–')}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Preferred meeting</div><div class="detail-field-value">${escHtml(f.Meeting||'–')}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Contact</div><div class="detail-field-value">${escHtml(f.ContactInfo||'–')}</div></div>
+          <div class="detail-field"><div class="detail-field-label">Logged</div><div class="detail-field-value">${item.createdDateTime ? new Date(item.createdDateTime).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}) : '–'}</div></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Content</div>
+        <div class="detail-grid">
+          <div class="detail-field full"><div class="detail-field-label">Summary</div><div class="detail-text-block">${escHtml(f.Summary||'–')}</div></div>
+          <div class="detail-field full"><div class="detail-field-label">Key Details / Impact</div><div class="detail-text-block">${escHtml(f.KeyDetails||'–')}</div></div>
+          <div class="detail-field full"><div class="detail-field-label">Recommendation</div><div class="detail-text-block">${escHtml(f.Recommendation||'–')}</div></div>
+        </div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Update Log</div>
+        <div class="update-log-entries" id="notes-entries">
+          ${notes.length ? notes.map(n => `
+            <div class="update-log-entry">
+              <div class="update-log-meta">${n.fields.NoteDate ? new Date(n.fields.NoteDate).toLocaleString('en-AU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''} · ${escHtml(n.fields.Author0||'')}</div>
+              <div class="update-log-text">${escHtml(n.fields.NoteText||'')}</div>
+            </div>`).join('') : '<p style="font-size:13px;color:var(--muted);font-style:italic">No updates yet.</p>'}
+        </div>
+        <textarea class="update-note-input" id="note-input" placeholder="Add a note or update…"></textarea>
+        <button class="btn-add-note" onclick="addNote('${folderId}')">Add Note</button>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Supporting Files</div>
+        <div class="attachment-list" id="attachment-list">
+          ${supportFiles.length ? supportFiles.map(sf => `
+            <a class="attachment-link" href="${escHtml(sf.webUrl)}" target="_blank">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--muted);flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              <span class="attachment-name">${escHtml(sf.name)}</span>
+            </a>`).join('') : '<p style="font-size:13px;color:var(--muted)">No supporting files.</p>'}
+        </div>
+        <input type="file" id="detail-attach-input" multiple style="display:none" onchange="uploadDetailAttachment(event,'${folderId}')">
+        <button class="btn-add-attachment" onclick="document.getElementById('detail-attach-input').click()">Attach additional file</button>
+      </div>
+
+      <div class="detail-section">
+        <button class="btn-download-pack" onclick="downloadSubmissionPack('${folderId}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Submission Pack
+        </button>
+        <div class="pack-note">Regenerates a fresh Submission.docx from current data + all supporting files in a single ZIP</div>
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('detail-body').innerHTML = `<p style="color:var(--high);padding:20px">Error: ${escHtml(e.message)}</p>`;
+  }
+}
+
+async function addNote(folderId) {
+  const input = document.getElementById('note-input');
+  const text = input.value.trim();
+  if (!text) return;
+  try {
+    await apiPost(`https://graph.microsoft.com/v1.0/sites/${siteId}/lists/${notesListId}/items`, {
+      fields: {
+        Title: 'Note',
+        SubmissionId: folderId,
+        Author0: currentUser?.name || currentUser?.username || 'User',
+        NoteDate: new Date().toISOString(),
+        NoteText: text
+      }
+    });
+    input.value = '';
+    showToast('Note added', 'success');
+    await openDetail(folderId);
+  } catch (e) {
+    showToast('Failed to add note: ' + e.message, 'error');
+  }
+}
+
+async function uploadDetailAttachment(e, folderId) {
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+  showToast('Uploading…');
+  try {
+    for (const file of files) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}:/Supporting Files/${safeName}:/content`;
+      await apiPut(uploadUrl, file, file.type || 'application/octet-stream');
+    }
+    showToast('Attachment added', 'success');
+    e.target.value = '';
+    await openDetail(folderId);
+  } catch (e2) {
+    showToast('Upload failed: ' + e2.message, 'error');
+  }
+}
+
+// ── DOWNLOAD PACK ──
+async function downloadSubmissionPack(folderId) {
+  showToast('Building pack…');
+  try {
+    const item = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}?expand=listItem($expand=fields)`);
+    const f = item.listItem.fields;
+    const docBlob = await generateDocx(f);
+
+    const zip = new JSZip();
+    zip.file('Submission.docx', docBlob);
+
+    const filesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${folderId}/children`);
+    const supportFolder = (filesRes.value || []).find(x => x.folder && x.name === 'Supporting Files');
+    if (supportFolder) {
+      const supportRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${supportFolder.id}/children`);
+      const supportFiles = (supportRes.value || []).filter(x => x.file);
+      const supportZipFolder = zip.folder('Supporting Files');
+      for (const sf of supportFiles) {
+        const token = await getToken();
+        const fileRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${sf.id}/content`, { headers: { Authorization: `Bearer ${token}` } });
+        const blob = await fileRes.blob();
+        supportZipFolder.file(sf.name, blob);
+      }
+    }
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const safeTitle = (f.Title || 'Submission').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-');
+    triggerDownload(zipBlob, `${safeTitle}_Pack.zip`);
+    showToast('Pack downloaded', 'success');
+  } catch (e) {
+    showToast('Pack build failed: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ── BOARD PACK MODAL ──
+function openPackModal() {
+  const meetings = [...new Set(allSubmissions.map(s => s.listItem?.fields?.Meeting).filter(Boolean))].sort();
+  const container = document.getElementById('pack-meeting-options');
+  if (!meetings.length) {
+    container.innerHTML = '<p style="font-size:13px;color:var(--muted)">No submissions with a meeting set yet.</p>';
+  } else {
+    container.innerHTML = meetings.map((m,i) => {
+      const count = allSubmissions.filter(s => s.listItem?.fields?.Meeting === m).length;
+      return `<div class="meeting-opt ${i===0?'selected':''}" data-meeting="${escHtml(m)}" onclick="selectMeeting(this)"><span>${escHtml(m)}</span><span class="meeting-opt-count">${count} submission${count!==1?'s':''}</span></div>`;
+    }).join('');
+  }
+  document.getElementById('pack-modal').classList.add('open');
+}
+function closePackModal() { document.getElementById('pack-modal').classList.remove('open'); }
+function selectMeeting(el) {
+  document.querySelectorAll('.meeting-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+}
+async function downloadBoardPack() {
+  const selected = document.querySelector('.meeting-opt.selected');
+  if (!selected) { showToast('No meeting selected', 'error'); return; }
+  const meeting = selected.dataset.meeting;
+  closePackModal();
+  showToast('Building board pack…');
+
+  try {
+    const matching = allSubmissions.filter(s => s.listItem?.fields?.Meeting === meeting);
+    const zip = new JSZip();
+
+    let indexText = `Board Meeting Pack — ${meeting}\nGenerated ${new Date().toLocaleString('en-AU')}\n\n`;
+    let i = 1;
+    for (const s of matching) {
+      const item = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${s.id}?expand=listItem($expand=fields)`);
+      const f = item.listItem.fields;
+      const docBlob = await generateDocx(f);
+      const num = String(i).padStart(2,'0');
+      const safeTitle = (f.Title||'Submission').replace(/[^a-zA-Z0-9 ]/g,'').replace(/\s+/g,'-');
+      zip.file(`${num}_${safeTitle}.docx`, docBlob);
+      indexText += `${num}. ${f.Title} (${f.Category}) — ${f.ActionType} — ${f.SubmissionStatus}\n`;
+
+      const filesRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${s.id}/children`);
+      const supportFolder = (filesRes.value || []).find(x => x.folder && x.name === 'Supporting Files');
+      if (supportFolder) {
+        const supportRes = await apiGet(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${supportFolder.id}/children`);
+        const supportFiles = (supportRes.value || []).filter(x => x.file);
+        if (supportFiles.length) {
+          const subZip = zip.folder(`${num}_${safeTitle}_Files`);
+          for (const sf of supportFiles) {
+            const token = await getToken();
+            const fileRes = await fetch(`https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${sf.id}/content`, { headers: { Authorization: `Bearer ${token}` } });
+            subZip.file(sf.name, await fileRes.blob());
+          }
+        }
+      }
+      i++;
+    }
+    zip.file('00_Index.txt', indexText);
+
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+    const safeMeeting = meeting.replace(/\s+/g,'_');
+    triggerDownload(zipBlob, `Bowlo_Board_Pack_${safeMeeting}.zip`);
+    showToast('Board pack downloaded', 'success');
+  } catch (e) {
+    showToast('Board pack failed: ' + e.message, 'error');
+    console.error(e);
+  }
+}
+
+// ── UTILS ──
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+let toastTimer;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (type ? ' ' + type : '') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ── BOOT ──
+(async () => {
+  try {
+    const result = await msalInstance.handleRedirectPromise();
+    let account = result?.account || msalInstance.getAllAccounts()[0];
+    if (!account) {
+      try {
+        const ssoResult = await msalInstance.ssoSilent({ scopes });
+        account = ssoResult.account;
+      } catch (ssoError) { /* no active session - fall through to button */ }
+    }
+    if (account) {
+      currentUser = account;
+      msalInstance.setActiveAccount(account);
+      await onSignedIn();
+    } else {
+      showLoginButton();
+    }
+  } catch (e) {
+    console.error('Sign-in failed:', e);
+    showLoginButton();
+    const note = document.getElementById('login-note');
+    if (note) note.innerHTML = `<span style="color:#ffb4b4">Sign-in error: ${escHtml(e.errorMessage || e.message || String(e))}</span>`;
+  }
+})();
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.querySelector('.btn-login');
+  if (btn) btn.addEventListener('click', signIn);
+});
+</script>
+</body>
+</html>
